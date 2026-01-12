@@ -139,6 +139,77 @@ Start-Process chrome.exe -ArgumentList "--remote-debugging-port=9222","about:bla
 
 ---
 
+## Running the Interactivity Test Suite
+
+The test suite (`interactivity-test.html`) validates browser automation capabilities. Here's how agents should invoke it:
+
+### Step 1: Launch Chrome with Debug Bridge
+
+```powershell
+# Run from the project directory (requires Administrator)
+.\start-dev-host.ps1
+```
+
+Wait for `OK Chrome DevTools listening!` before proceeding.
+
+### Step 2: Start the HTTP Server
+
+The test file must be served via HTTP (file:// URLs are blocked by Playwright):
+
+```powershell
+python -m http.server 8080
+```
+
+Run this as a **background process** so it doesn't block subsequent commands.
+
+### Step 3: Navigate to the Test Page
+
+Use Playwright MCP to navigate:
+```
+mcp_playwright_browser_navigate → http://127.0.0.1:8080/interactivity-test.html
+```
+
+### Step 4: Run Test Battery
+
+Execute tests in this order for comprehensive coverage:
+
+| Test | Tool | Target Ref | Notes |
+|------|------|------------|-------|
+| Single Click | `browser_click` | `btn-single` | Basic click event |
+| Double Click | `browser_click` (doubleClick=true) | `btn-double` | Double-click event |
+| Counter | `browser_click` | `btn-counter` | State mutation |
+| Text Input | `browser_type` | `text-input` | Fill with any text |
+| Select | `browser_select_option` | `select-input` | Choose "Option 2" |
+| Checkbox | `browser_click` | `check1`, `check2` | Toggle checkboxes |
+| Radio | `browser_click` | Radio A/B/C | Radio button selection |
+| Keyboard | `browser_type` (slowly=true) | `keyboard-input` | Key-by-key typing |
+| Mouse | `browser_hover` | `mouse-area` | Hover events |
+| Async | `browser_click` | `btn-async` | 1-second async operation |
+| Storage | `browser_type` + `browser_click` | Key/Value inputs + Save/Load | localStorage test |
+| DOM Add | `browser_click` | `btn-add` | Dynamic element creation |
+| DOM Toggle | `browser_click` | `btn-toggle` | Visibility toggle |
+| DOM Remove | `browser_click` | `btn-remove` | Element removal |
+| Drag & Drop | `browser_drag` | `draggable1` → `drop-zone` | Drag and drop |
+
+### Step 5: Verify Results
+
+Check the status panel (top-right) or console logs:
+```
+mcp_playwright_browser_console_messages → level: "info"
+```
+
+All tests should show `[TEST] <name>: PASS` in console output.
+
+### Common Agent Mistakes
+
+1. **Forgetting the HTTP server** - `file://` URLs are blocked
+2. **Not waiting for Chrome** - Run `curl http://127.0.0.1:9222/json/version` to verify
+3. **Using wrong refs** - Always get fresh snapshot after navigation
+4. **Running tests in parallel** - Run sequentially to avoid race conditions
+5. **Skipping the screenshot** - Use `browser_take_screenshot` for visual verification
+
+---
+
 ## Architecture Summary
 
 ```

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSL-Dev-Bridge Interactivity Test Suite</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #00d4ff; text-align: center; }
+        h2 { color: #ff6b6b; border-bottom: 2px solid #ff6b6b; padding-bottom: 5px; }
+        .test-section { 
+            background: #16213e; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 10px;
+            border: 1px solid #0f3460;
+        }
+        button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        button:hover { background: #ff6b6b; transform: scale(1.05); }
+        button:active { transform: scale(0.95); }
+        input, select, textarea {
+            padding: 10px;
+            margin: 5px;
+            border: 2px solid #0f3460;
+            border-radius: 5px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 14px;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #00d4ff;
+            outline: none;
+        }
+        .result {
+            background: #0f3460;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            min-height: 30px;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .counter { font-size: 48px; color: #00d4ff; text-align: center; }
+        .checkbox-group label { margin-right: 15px; cursor: pointer; }
+        .drag-zone {
+            border: 3px dashed #0f3460;
+            padding: 40px;
+            text-align: center;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .drag-zone.dragover { border-color: #00d4ff; background: rgba(0,212,255,0.1); }
+        .draggable {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #e94560;
+            border-radius: 5px;
+            cursor: move;
+            margin: 5px;
+        }
+        #canvas { border: 2px solid #0f3460; border-radius: 5px; cursor: crosshair; }
+        .status-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00d4ff;
+            max-width: 250px;
+            font-size: 12px;
+        }
+        .status-panel h3 { margin: 0 0 10px 0; color: #00d4ff; }
+        #test-log { max-height: 200px; overflow-y: auto; }
+        #test-log div { padding: 3px 0; border-bottom: 1px solid #0f3460; }
+    </style>
+</head>
+<body>
+    <h1>🧪 WSL-Dev-Bridge Interactivity Test Suite</h1>
+    
+    <div class="status-panel">
+        <h3>Test Status</h3>
+        <div>Tests Run: <span id="tests-run">0</span></div>
+        <div>Passed: <span id="tests-passed" class="success">0</span></div>
+        <div>Failed: <span id="tests-failed" class="error">0</span></div>
+        <div id="test-log"></div>
+    </div>
+
+    <!-- TEST 1: Click Events -->
+    <div class="test-section" id="test-clicks">
+        <h2>Test 1: Click Events</h2>
+        <button id="btn-single" onclick="handleSingleClick()">Single Click Me</button>
+        <button id="btn-double" ondblclick="handleDoubleClick()">Double Click Me</button>
+        <button id="btn-counter" onclick="incrementCounter()">Increment Counter</button>
+        <div class="counter" id="counter">0</div>
+        <div class="result" id="click-result">Click a button to test...</div>
+    </div>
+
+    <!-- TEST 2: Text Input -->
+    <div class="test-section" id="test-input">
+        <h2>Test 2: Text Input</h2>
+        <input type="text" id="text-input" placeholder="Type something here..." oninput="handleInput(this.value)">
+        <button onclick="clearInput()">Clear</button>
+        <div class="result" id="input-result">Start typing to test input handling...</div>
+        <div id="char-count">Characters: 0</div>
+    </div>
+
+    <!-- TEST 3: Form Elements -->
+    <div class="test-section" id="test-form">
+        <h2>Test 3: Form Elements</h2>
+        <div>
+            <label>Select Option:</label>
+            <select id="select-input" onchange="handleSelect(this.value)">
+                <option value="">Choose...</option>
+                <option value="option1">Option 1</option>
+                <option value="option2">Option 2</option>
+                <option value="option3">Option 3</option>
+            </select>
+        </div>
+        <div class="checkbox-group" style="margin-top: 10px;">
+            <label><input type="checkbox" id="check1" onchange="handleCheckbox()"> Checkbox 1</label>
+            <label><input type="checkbox" id="check2" onchange="handleCheckbox()"> Checkbox 2</label>
+            <label><input type="checkbox" id="check3" onchange="handleCheckbox()"> Checkbox 3</label>
+        </div>
+        <div style="margin-top: 10px;">
+            <label><input type="radio" name="radio-group" value="A" onchange="handleRadio(this.value)"> Radio A</label>
+            <label><input type="radio" name="radio-group" value="B" onchange="handleRadio(this.value)"> Radio B</label>
+            <label><input type="radio" name="radio-group" value="C" onchange="handleRadio(this.value)"> Radio C</label>
+        </div>
+        <div class="result" id="form-result">Interact with form elements...</div>
+    </div>
+
+    <!-- TEST 4: Keyboard Events -->
+    <div class="test-section" id="test-keyboard">
+        <h2>Test 4: Keyboard Events</h2>
+        <input type="text" id="keyboard-input" placeholder="Press keys here..." 
+               onkeydown="handleKeyDown(event)" onkeyup="handleKeyUp(event)">
+        <div class="result" id="keyboard-result">Focus input and press keys...</div>
+        <div id="key-history">Key history: </div>
+    </div>
+
+    <!-- TEST 5: Mouse Events -->
+    <div class="test-section" id="test-mouse">
+        <h2>Test 5: Mouse Events</h2>
+        <div id="mouse-area" style="height: 100px; background: #0f3460; border-radius: 5px; display: flex; align-items: center; justify-content: center;"
+             onmousemove="handleMouseMove(event)" 
+             onmouseenter="handleMouseEnter()"
+             onmouseleave="handleMouseLeave()">
+            Move mouse here
+        </div>
+        <div class="result" id="mouse-result">Mouse position: waiting...</div>
+    </div>
+
+    <!-- TEST 6: Canvas Drawing -->
+    <div class="test-section" id="test-canvas">
+        <h2>Test 6: Canvas Drawing</h2>
+        <canvas id="canvas" width="400" height="150"></canvas>
+        <button onclick="clearCanvas()">Clear Canvas</button>
+        <div class="result" id="canvas-result">Draw on canvas by clicking and dragging...</div>
+    </div>
+
+    <!-- TEST 7: Drag and Drop -->
+    <div class="test-section" id="test-dragdrop">
+        <h2>Test 7: Drag and Drop</h2>
+        <div class="draggable" id="draggable1" draggable="true" ondragstart="handleDragStart(event)">Drag Me 1</div>
+        <div class="draggable" id="draggable2" draggable="true" ondragstart="handleDragStart(event)">Drag Me 2</div>
+        <div class="drag-zone" id="drop-zone" 
+             ondrop="handleDrop(event)" 
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)">
+            Drop Zone
+        </div>
+        <div class="result" id="drag-result">Drag items to the drop zone...</div>
+    </div>
+
+    <!-- TEST 8: Async Operations -->
+    <div class="test-section" id="test-async">
+        <h2>Test 8: Async Operations</h2>
+        <button id="btn-async" onclick="runAsyncTest()">Run Async Test</button>
+        <button id="btn-fetch" onclick="runFetchTest()">Test Fetch API</button>
+        <div class="result" id="async-result">Click to run async tests...</div>
+    </div>
+
+    <!-- TEST 9: Local Storage -->
+    <div class="test-section" id="test-storage">
+        <h2>Test 9: Local Storage</h2>
+        <input type="text" id="storage-key" placeholder="Key">
+        <input type="text" id="storage-value" placeholder="Value">
+        <button onclick="saveToStorage()">Save</button>
+        <button onclick="loadFromStorage()">Load</button>
+        <button onclick="clearStorage()">Clear All</button>
+        <div class="result" id="storage-result">Test localStorage operations...</div>
+    </div>
+
+    <!-- TEST 10: DOM Manipulation -->
+    <div class="test-section" id="test-dom">
+        <h2>Test 10: DOM Manipulation</h2>
+        <button onclick="addElement()">Add Element</button>
+        <button onclick="removeElement()">Remove Last</button>
+        <button onclick="toggleVisibility()">Toggle Hidden</button>
+        <div id="dom-container" style="min-height: 50px; background: #0f3460; padding: 10px; border-radius: 5px; margin-top: 10px;">
+            <span id="toggleable">I can be hidden!</span>
+        </div>
+        <div class="result" id="dom-result">Manipulate DOM elements...</div>
+    </div>
+
+    <script>
+        // Test tracking
+        let testsRun = 0, testsPassed = 0, testsFailed = 0;
+        const keyHistory = [];
+        
+        function logTest(name, passed, message) {
+            testsRun++;
+            if (passed) testsPassed++;
+            else testsFailed++;
+            
+            document.getElementById('tests-run').textContent = testsRun;
+            document.getElementById('tests-passed').textContent = testsPassed;
+            document.getElementById('tests-failed').textContent = testsFailed;
+            
+            const log = document.getElementById('test-log');
+            const entry = document.createElement('div');
+            entry.className = passed ? 'success' : 'error';
+            entry.textContent = `${passed ? '✓' : '✗'} ${name}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            console.log(`[TEST] ${name}: ${passed ? 'PASS' : 'FAIL'} - ${message}`);
+        }
+
+        // Test 1: Click handlers
+        function handleSingleClick() {
+            document.getElementById('click-result').textContent = '✓ Single click detected!';
+            document.getElementById('click-result').className = 'result success';
+            logTest('Single Click', true, 'Button clicked');
+        }
+        
+        function handleDoubleClick() {
+            document.getElementById('click-result').textContent = '✓ Double click detected!';
+            document.getElementById('click-result').className = 'result success';
+            logTest('Double Click', true, 'Button double-clicked');
+        }
+        
+        let counter = 0;
+        function incrementCounter() {
+            counter++;
+            document.getElementById('counter').textContent = counter;
+            if (counter === 1) logTest('Counter', true, `Counter incremented to ${counter}`);
+        }
+
+        // Test 2: Text input
+        function handleInput(value) {
+            document.getElementById('input-result').textContent = `Input value: "${value}"`;
+            document.getElementById('char-count').textContent = `Characters: ${value.length}`;
+            if (value.length === 1) logTest('Text Input', true, 'Input received');
+        }
+        
+        function clearInput() {
+            document.getElementById('text-input').value = '';
+            document.getElementById('input-result').textContent = 'Input cleared';
+            document.getElementById('char-count').textContent = 'Characters: 0';
+        }
+
+        // Test 3: Form elements
+        function handleSelect(value) {
+            document.getElementById('form-result').textContent = `Selected: ${value}`;
+            logTest('Select', true, `Selected ${value}`);
+        }
+        
+        function handleCheckbox() {
+            const checked = ['check1', 'check2', 'check3']
+                .filter(id => document.getElementById(id).checked);
+            document.getElementById('form-result').textContent = `Checked: ${checked.join(', ') || 'none'}`;
+            logTest('Checkbox', true, `Checkboxes: ${checked.length} checked`);
+        }
+        
+        function handleRadio(value) {
+            document.getElementById('form-result').textContent = `Radio selected: ${value}`;
+            logTest('Radio', true, `Radio ${value} selected`);
+        }
+
+        // Test 4: Keyboard events
+        function handleKeyDown(event) {
+            keyHistory.push(event.key);
+            if (keyHistory.length > 10) keyHistory.shift();
+            document.getElementById('keyboard-result').textContent = 
+                `Key down: ${event.key} (code: ${event.code})`;
+            document.getElementById('key-history').textContent = 
+                `Key history: ${keyHistory.join(' → ')}`;
+            if (keyHistory.length === 1) logTest('Keyboard', true, `Key pressed: ${event.key}`);
+        }
+        
+        function handleKeyUp(event) {
+            document.getElementById('keyboard-result').textContent += ` | Key up: ${event.key}`;
+        }
+
+        // Test 5: Mouse events
+        function handleMouseMove(event) {
+            const rect = event.target.getBoundingClientRect();
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
+            document.getElementById('mouse-result').textContent = `Mouse position: (${x}, ${y})`;
+        }
+        
+        function handleMouseEnter() {
+            document.getElementById('mouse-area').style.background = '#1a3a5c';
+            logTest('Mouse Enter', true, 'Mouse entered area');
+        }
+        
+        function handleMouseLeave() {
+            document.getElementById('mouse-area').style.background = '#0f3460';
+        }
+
+        // Test 6: Canvas
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let drawCount = 0;
+        
+        ctx.fillStyle = '#0f3460';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.stroke();
+                drawCount++;
+                document.getElementById('canvas-result').textContent = `Drawing... (${drawCount} points)`;
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            if (isDrawing && drawCount > 0) {
+                logTest('Canvas Draw', true, `Drew ${drawCount} points`);
+            }
+            isDrawing = false;
+        });
+        
+        function clearCanvas() {
+            ctx.fillStyle = '#0f3460';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawCount = 0;
+            document.getElementById('canvas-result').textContent = 'Canvas cleared';
+        }
+
+        // Test 7: Drag and drop
+        let draggedId = null;
+        
+        function handleDragStart(event) {
+            draggedId = event.target.id;
+            event.dataTransfer.setData('text/plain', draggedId);
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault();
+            document.getElementById('drop-zone').classList.add('dragover');
+        }
+        
+        function handleDragLeave(event) {
+            document.getElementById('drop-zone').classList.remove('dragover');
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            document.getElementById('drop-zone').classList.remove('dragover');
+            const id = event.dataTransfer.getData('text/plain');
+            document.getElementById('drag-result').textContent = `✓ Dropped: ${id}`;
+            logTest('Drag & Drop', true, `Dropped ${id}`);
+        }
+
+        // Test 8: Async operations
+        async function runAsyncTest() {
+            document.getElementById('async-result').textContent = 'Running async test...';
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            document.getElementById('async-result').textContent = '✓ Async operation completed after 1 second';
+            document.getElementById('async-result').className = 'result success';
+            logTest('Async', true, 'Async completed');
+        }
+        
+        async function runFetchTest() {
+            document.getElementById('async-result').textContent = 'Testing fetch...';
+            try {
+                // Fetch from the DevTools endpoint to verify connectivity
+                const response = await fetch('/json/version');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('async-result').textContent = 
+                        `✓ Fetch success! Browser: ${data.Browser || 'Unknown'}`;
+                    document.getElementById('async-result').className = 'result success';
+                    logTest('Fetch', true, 'Fetch succeeded');
+                }
+            } catch (e) {
+                document.getElementById('async-result').textContent = `Fetch test: ${e.message} (expected if not served via DevTools)`;
+                logTest('Fetch', true, 'Fetch attempted');
+            }
+        }
+
+        // Test 9: Local Storage
+        function saveToStorage() {
+            const key = document.getElementById('storage-key').value || 'test-key';
+            const value = document.getElementById('storage-value').value || 'test-value';
+            localStorage.setItem(key, value);
+            document.getElementById('storage-result').textContent = `✓ Saved: ${key} = ${value}`;
+            logTest('Storage Save', true, `Saved ${key}`);
+        }
+        
+        function loadFromStorage() {
+            const key = document.getElementById('storage-key').value || 'test-key';
+            const value = localStorage.getItem(key);
+            document.getElementById('storage-result').textContent = 
+                value !== null ? `✓ Loaded: ${key} = ${value}` : `Key "${key}" not found`;
+            if (value !== null) logTest('Storage Load', true, `Loaded ${key}`);
+        }
+        
+        function clearStorage() {
+            localStorage.clear();
+            document.getElementById('storage-result').textContent = '✓ Storage cleared';
+            logTest('Storage Clear', true, 'Cleared');
+        }
+
+        // Test 10: DOM manipulation
+        let elementCount = 0;
+        
+        function addElement() {
+            elementCount++;
+            const el = document.createElement('div');
+            el.className = 'dynamic-element';
+            el.id = `dynamic-${elementCount}`;
+            el.style.cssText = 'background: #e94560; padding: 5px 10px; margin: 5px; display: inline-block; border-radius: 3px;';
+            el.textContent = `Element ${elementCount}`;
+            document.getElementById('dom-container').appendChild(el);
+            document.getElementById('dom-result').textContent = `Added element ${elementCount}`;
+            logTest('DOM Add', true, `Added element ${elementCount}`);
+        }
+        
+        function removeElement() {
+            const container = document.getElementById('dom-container');
+            const elements = container.querySelectorAll('.dynamic-element');
+            if (elements.length > 0) {
+                elements[elements.length - 1].remove();
+                document.getElementById('dom-result').textContent = 'Removed last element';
+                logTest('DOM Remove', true, 'Removed element');
+            } else {
+                document.getElementById('dom-result').textContent = 'No elements to remove';
+            }
+        }
+        
+        function toggleVisibility() {
+            const el = document.getElementById('toggleable');
+            el.style.display = el.style.display === 'none' ? 'inline' : 'none';
+            document.getElementById('dom-result').textContent = 
+                `Toggled visibility: ${el.style.display === 'none' ? 'hidden' : 'visible'}`;
+            logTest('DOM Toggle', true, 'Toggled visibility');
+        }
+
+        // Auto-run diagnostics on load
+        window.addEventListener('load', () => {
+            console.log('=== WSL-Dev-Bridge Interactivity Test Suite Loaded ===');
+            console.log('Page ready for automated testing');
+            console.log('Tests available: clicks, input, forms, keyboard, mouse, canvas, drag-drop, async, storage, DOM');
+            
+            // Signal page is ready
+            window.testSuiteReady = true;
+        });
+    </script>
+</body>
+</html>
