@@ -1,2 +1,4 @@
 debug-bridge.log
 dev-host.log
+__pycache__/
+*.egg-info/

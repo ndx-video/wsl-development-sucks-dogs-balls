@@ -1,65 +1,85 @@
-# WSL Development Sucks Dogs Balls
+# WSL Dev Kit
 
-## But you still do it because REASONS
+**The nuclear option for WSL2 browser automation.**
 
-**The Chasm:** WSL2 is a Virtual Machine. 
-* `localhost` in WSL is **not** `localhost` in Windows.
-* Chrome ignores `--remote-debugging-address` on Windows and always binds to `127.0.0.1`.
-* Your Agentic tools fail to connect, timeout, or get `Connection Refused`.
+WSL2 is a Virtual Machine. `localhost` in WSL is **not** `localhost` in Windows. Chrome ignores `--remote-debugging-address` on Windows and always binds to `127.0.0.1`.
 
-This repo provides the **nuclear option**: a bulletproof bridge using `netsh portproxy` to expose Chrome's debug port to WSL.
+**WSL Dev Kit** (`wsl-dev`) bridges this chasm. It is a single-file, zero-dependency Python tool that orchestrates the connection between your WSL environment and Windows browsers.
 
----
+## Features
 
-## Prerequisites
+- **Unified Tool**: One command works on both Windows and WSL.
+- **Auto-Orchestration**:
+    - **From WSL**: Detects Windows host, invokes PowerShell via interop to set up the bridge, and validates connectivity.
+    - **On Windows**: Admin check, `netsh portproxy` setup, firewall handling, and browser launching.
+- **Browser Support**: Chrome (default), Firefox, and LibreWolf.
+- **Embedded Test Suite**: Includes a full interactivity test page to verify automation.
+- **Zero Dependencies**: Uses standard library only.
+- **Diagnostics**: Built-in self-test and validation.
 
-1. **WSL2** (obviously)
-2. **Google Chrome** installed on Windows at `C:\Program Files\Google\Chrome\Application\chrome.exe`
-3. **Administrator Rights** on Windows (for portproxy setup)
-4. **PowerShell 7+** on Windows
-5. **Python 3.x** on Windows (for the HTTP test server)
-6. **VS Code** with the following extensions:
-   - **Playwright MCP** (for browser automation)
-   - **GitHub Copilot** or similar AI assistant
+## Installation
 
----
+Requires **Python 3.8+** on Windows and WSL.
 
-## Quick Start
-
-### Windows (Run as Administrator)
-```powershell
-.\start-dev-host.ps1
-```
-
-Output:
-```
---- [1/4] Detecting WSL Network ---
-OK WSL Host IP: 172.21.208.1
-
---- [2/4] Nuking Chrome & Clearing Profile ---
-OK Chrome killed, profile cleared
-
---- [3/4] Setting up PortProxy ---
-OK PortProxy: 172.21.208.1:9222 -> 127.0.0.1:9222
-
---- [4/4] Launching Chrome ---
-OK Chrome DevTools listening!
-
----------------------------------------------------
-Windows: http://127.0.0.1:9222/json/version
-WSL:     http://172.21.208.1:9222/json/version
----------------------------------------------------
-```
-
-### WSL
-From WSL, connect to Chrome using the Windows host IP:
 ```bash
-curl http://$(ip route show | grep default | awk '{print $3}'):9222/json/version
+git clone https://github.com/yourusername/wsl-development-sucks-dogs-balls.git
+cd wsl-development-sucks-dogs-balls
+pip install -e .
 ```
 
-Or use `debug-bridge.sh` if you need localhost forwarding within WSL.
+*Note: You must install this on **both** Windows and WSL if you want to run it natively in each environment, though the WSL version can trigger the Windows side automatically.*
 
----
+## Usage
+
+### 🚀 Standard Usage (From WSL)
+
+Just run the tool. It will detect it's in WSL, find the Windows host, and set everything up.
+
+```bash
+wsl-dev
+```
+
+**What happens:**
+1. Detects Windows Host IP.
+2. Invokes itself on Windows (via `powershell.exe`) to kill old browser instances and set up `portproxy`.
+3. Launches Chrome on Windows with remote debugging enabled.
+4. Verifies the connection from WSL.
+
+### 🪟 Windows Usage
+
+Run as **Administrator** (required for `netsh` commands).
+
+```powershell
+wsl-dev
+```
+
+### 🌐 Options
+
+| Flag | Description |
+|------|-------------|
+| `--browser <name>` | Select browser: `chrome` (default), `firefox`, `librewolf`. |
+| `--diagnose` | Run a comprehensive self-test and report issues. |
+| `--validate` | Quick pass/fail check for connectivity. |
+| `--serve` | Serve the embedded test page on port 8000. |
+| `--test` | Open the test page in the browser automatically. |
+| `--port <N>` | Specify custom debug port (default: 9222). |
+
+### Examples
+
+**Launch Firefox instead of Chrome:**
+```bash
+wsl-dev --browser firefox
+```
+
+**Run diagnostics:**
+```bash
+wsl-dev --diagnose
+```
+
+**Serve the test suite and open it:**
+```bash
+wsl-dev --serve --test
+```
 
 ## How It Works
 
@@ -80,131 +100,24 @@ Or use `debug-bridge.sh` if you need localhost forwarding within WSL.
 └─────────────────────────────────────────────────────────────┘
 ```
 
-1. Chrome binds to `127.0.0.1:9222` (this is hardcoded behavior on Windows)
-2. `netsh interface portproxy` exposes that on the WSL vEthernet interface
-3. WSL tools connect to the Windows host IP (usually `172.21.x.x`)
+## Troubleshooting
 
----
+### "Connection Refused"
+- **Cause**: Chrome isn't running or `portproxy` failed.
+- **Fix**: Run `wsl-dev --diagnose` to see which step failed. Ensure you have Admin rights on Windows.
 
-## For AI Agents
+### "Portproxy creation failed"
+- **Cause**: Missing Admin rights on Windows.
+- **Fix**: Run PowerShell as Administrator. If running from WSL, the tool attempts to elevate, but UAC might block it.
 
-See [agents.md](agents.md) for critical pitfalls and debugging guidance when modifying this project.
+### Browser Profile Issues
+- **Cause**: Corrupted profile from previous sessions.
+- **Fix**: The tool attempts to clear `C:\ChromeDevProfile` (or similar) on launch. Manually delete this folder if issues persist.
 
----
+### "Command not found"
+- **Cause**: `pip` install location not in PATH.
+- **Fix**: Add your Python scripts directory to PATH, or run via `python -m wsl_dev_kit`.
 
-## Running the Interactivity Test Suite
+## License
 
-The included `interactivity-test.html` provides a comprehensive battery of tests to verify browser automation is working correctly.
-
-### For Humans: Manual Testing
-
-1. **Start the debug bridge:**
-   ```powershell
-   # Run as Administrator
-   .\start-dev-host.ps1
-   ```
-
-2. **Start the HTTP server** (in a separate terminal):
-   ```powershell
-   python -m http.server 8080
-   ```
-
-3. **Open in Chrome:**
-   Navigate to `http://127.0.0.1:8080/interactivity-test.html`
-
-4. **Click through tests manually** - the status panel in the top-right shows pass/fail counts.
-
-### For Humans: Automated Testing via AI Agent
-
-Ask your AI assistant (Copilot, Claude, etc.):
-
-> "Navigate to http://127.0.0.1:8080/interactivity-test.html and run all the interactivity tests"
-
-The agent will use Playwright MCP to:
-- Click buttons (single, double, counter)
-- Type in text fields
-- Select dropdowns
-- Check checkboxes and radio buttons
-- Test keyboard events
-- Hover over elements
-- Drag and drop items
-- Test async operations
-- Verify localStorage
-- Manipulate the DOM
-
-### Test Coverage
-
-| Category | Tests | What It Validates |
-|----------|-------|-------------------|
-| Click Events | 3 | Single click, double click, counter state |
-| Text Input | 1 | Input events, character counting |
-| Form Elements | 4 | Select, checkboxes, radio buttons |
-| Keyboard | 1 | Key events, key history tracking |
-| Mouse | 1 | Hover, enter/leave events |
-| Canvas | 1 | Drawing, mouse tracking |
-| Drag & Drop | 1 | HTML5 drag and drop API |
-| Async | 2 | Promises, fetch API |
-| Storage | 3 | localStorage save/load/clear |
-| DOM | 3 | Add/remove/toggle elements |
-
----
-
-## Tips for Getting the Most Out of This Test Kit
-
-### 🎯 For Debugging Connection Issues
-
-1. **Always verify Chrome is listening first:**
-   ```powershell
-   curl.exe http://127.0.0.1:9222/json/version
-   ```
-   
-2. **Check the portproxy is set up:**
-   ```powershell
-   netsh interface portproxy show all
-   ```
-
-3. **If things are broken, nuclear reset:**
-   ```powershell
-   netsh interface portproxy reset
-   Stop-Process -Name chrome -Force
-   Start-Sleep -Seconds 60  # Wait for TIME_WAIT to clear
-   .\start-dev-host.ps1
-   ```
-
-### 🤖 For AI Agent Development
-
-1. **Use the test suite as a smoke test** - If all 17+ tests pass, your browser automation setup is solid.
-
-2. **Check console logs** - The test page logs every action with `[TEST]` prefix.
-
-3. **Screenshot on failure** - Use `browser_take_screenshot` to capture visual state.
-
-4. **The status panel never lies** - Top-right corner shows real-time pass/fail counts.
-
-### ⚠️ Common Gotchas
-
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| "Connection refused" | Chrome not running | Run `start-dev-host.ps1` |
-| "file:// blocked" | No HTTP server | Run `python -m http.server 8080` |
-| Tests hang | Chrome profile corrupted | Delete `C:\ChromeDevProfile` |
-| Hundreds of TIME_WAIT | Portproxy loop | `netsh interface portproxy reset`, wait 60s |
-| WSL can't connect | Firewall blocking | Run script as Administrator |
-
-### 📊 Interpreting Results
-
-- **17/17 passed** = Everything works, you're ready to automate
-- **Some failures** = Check console logs for which test failed
-- **All failures** = Usually a connection issue, not a test issue
-
----
-
-## Files in This Repo
-
-| File | Purpose |
-|------|---------|
-| `start-dev-host.ps1` | Windows script to launch Chrome with debug bridge |
-| `debug-bridge.sh` | WSL script for localhost forwarding (optional) |
-| `interactivity-test.html` | Comprehensive browser automation test suite |
-| `agents.md` | Guidelines for AI agents working on this project |
-| `README.md` | This file |
+MIT
