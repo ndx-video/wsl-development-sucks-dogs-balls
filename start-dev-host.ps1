@@ -1,100 +1,43 @@
 # ==========================================
 # WSL-DEV-BRIDGE: Secure Host Initiator
 # ==========================================
-# 1. Detects the specific vEthernet (WSL) IP
-# 2. Creates a scoped Firewall Rule (WSL Subnet Only)
-# 3. Launches Chrome bound ONLY to the WSL Interface
-# ==========================================
 
 $ChromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 $UserDataDir = "C:\ChromeDevProfile"
 $Port = 9222
-$AdapterName = "vEthernet (WSL)"
 
 Write-Host "--- [1/4] Detecting WSL Network ---" -ForegroundColor Cyan
-
-# Find the WSL Adapter IP on the Host
-try {
-    $WslAdapter = Get-NetIPAddress -InterfaceAlias $AdapterName -AddressFamily IPv4 -ErrorAction Stop
-    $HostIP = $WslAdapter.IPAddress
-    # Calculate the subnet (simple approximation based on prefix, usually /20)
-    # For firewall safety, we allows the whole class B or the specific prefix. 
-    # To be safe and simple, we allow the /16 range which covers WSL's dynamic allocation.
-    $FirewallScope = "$($HostIP.Split('.')[0]).$($HostIP.Split('.')[1]).0.0/16"
-    
-    Write-Host "✅ Detected WSL Host IP: $HostIP" -ForegroundColor Green
-    Write-Host "🔒 Firewall Scope: $FirewallScope (WSL Traffic Only)" -ForegroundColor Gray
+$WslAdapter = Get-NetIPAddress -InterfaceAlias "*WSL*" -AddressFamily IPv4 -ErrorAction SilentlyContinue
+if (-not $WslAdapter) {
+    Write-Host "X CRITICAL: No WSL adapter found. Is WSL running?" -ForegroundColor Red
+    exit 1
 }
-catch {
-    Write-Host "❌ CRITICAL: Could not find network adapter '$AdapterName'." -ForegroundColor Red
-    Write-Host "   Is WSL2 running? Run 'wsl' in another window to wake it up."
-    exit
-}
+$WslHostIP = $WslAdapter.IPAddress
+Write-Host "OK WSL Host IP: $WslHostIP" -ForegroundColor Green
 
-Write-Host "`n--- [2/4] Enforcing Scoped Firewall Rules ---" -ForegroundColor Cyan
-$RuleName = "Chrome DevTools Bridge (WSL Secure)"
+Write-Host "`n--- [2/4] Nuking Chrome & Clearing Profile ---" -ForegroundColor Cyan
+Stop-Process -Name chrome -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+Remove-Item $UserDataDir -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "OK Chrome killed, profile cleared" -ForegroundColor Green
 
-# Remove old "Lazy" rules if they exist
-Remove-NetFirewallRule -DisplayName "Chrome DevTools Bridge" -ErrorAction SilentlyContinue
+Write-Host "`n--- [3/4] Setting up PortProxy ---" -ForegroundColor Cyan
+netsh interface portproxy delete v4tov4 listenaddress=$WslHostIP listenport=$Port 2>$null | Out-Null
+netsh interface portproxy add v4tov4 listenaddress=$WslHostIP listenport=$Port connectaddress=127.0.0.1 connectport=$Port | Out-Null
+Write-Host "OK PortProxy: ${WslHostIP}:${Port} -> 127.0.0.1:${Port}" -ForegroundColor Green
 
-# Check/Update Secure Rule
-$Rule = Get-NetFirewallRule -DisplayName $RuleName -ErrorAction SilentlyContinue
+Write-Host "`n--- [4/4] Launching Chrome ---" -ForegroundColor Cyan
+Start-Process $ChromePath -ArgumentList "--remote-debugging-port=$Port","--user-data-dir=$UserDataDir","--no-first-run","about:blank"
+Start-Sleep -Seconds 3
 
-if ($null -eq $Rule) {
-    Write-Host "Creating Secure Firewall Rule..." -ForegroundColor Yellow
-    try {
-        # This rule allows traffic on Port 9222 ONLY from the WSL Subnet
-        New-NetFirewallRule -DisplayName $RuleName `
-                            -Direction Inbound `
-                            -LocalPort $Port `
-                            -Protocol TCP `
-                            -Action Allow `
-                            -Profile Any `
-                            -RemoteAddress $FirewallScope
-        Write-Host "✅ Secure Firewall Rule Created." -ForegroundColor Green
-    }
-    catch {
-        Write-Host "❌ FAILED. Run as Administrator!" -ForegroundColor Red
-        exit
-    }
+$test = curl.exe -s "http://127.0.0.1:$Port/json/version" 2>$null
+if ($test -match "Browser") {
+    Write-Host "OK Chrome DevTools listening!" -ForegroundColor Green
 } else {
-    # Optional: Update the scope if the WSL IP changed (it changes on reboot!)
-    Set-NetFirewallRule -DisplayName $RuleName -RemoteAddress $FirewallScope
-    Write-Host "✅ Firewall Rule Updated for new IP." -ForegroundColor Green
-}
-
-Write-Host "`n--- [3/4] Nuking Chrome Zombies ---" -ForegroundColor Cyan
-$ChromeProcs = Get-Process -Name "chrome" -ErrorAction SilentlyContinue
-if ($ChromeProcs) {
-    Write-Host "Killing $($ChromeProcs.Count) Chrome processes..." -ForegroundColor Yellow
-    Stop-Process -Name "chrome" -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 1
-}
-
-if (Test-Path "$UserDataDir\SingletonLock") {
-    Remove-Item "$UserDataDir\SingletonLock" -Force -ErrorAction SilentlyContinue
-}
-
-Write-Host "`n--- [4/4] Launching Chrome (Secure Mode) ---" -ForegroundColor Cyan
-$Args = @(
-    "--remote-debugging-port=$Port",
-    "--remote-debugging-address=$HostIP",   # Binds ONLY to the WSL Interface
-    "--remote-allow-origins=*",             # Still needed for tool headers, but network is locked
-    "--user-data-dir=$UserDataDir",
-    "--no-first-run",
-    "http://$($HostIP):$Port/json/version"
-)
-
-try {
-    Start-Process -FilePath $ChromePath -ArgumentList $Args
-    Write-Host "✅ Chrome Launched on $HostIP:$Port" -ForegroundColor Green
-    Write-Host "    (Invisible to Public LAN, Visible to WSL)"
-}
-catch {
-    Write-Host "❌ Failed to launch Chrome." -ForegroundColor Red
+    Write-Host "X Chrome not responding" -ForegroundColor Red
 }
 
 Write-Host "`n---------------------------------------------------"
-Write-Host "READY. Run ./debug-bridge.sh in WSL." -ForegroundColor Cyan
-Write-Host "NOTE: Your bridge script must target: $HostIP" -ForegroundColor Yellow
+Write-Host "Windows: http://127.0.0.1:${Port}/json/version" -ForegroundColor Yellow
+Write-Host "WSL:     http://${WslHostIP}:${Port}/json/version" -ForegroundColor Yellow
 Write-Host "---------------------------------------------------"
